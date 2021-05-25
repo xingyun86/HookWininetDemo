@@ -32,8 +32,8 @@ typedef LONG NTSTATUS;
 #define STATUS_SUCCESS ((NTSTATUS)0x00000000L) 
 #endif
 
+typedef NTSTATUS (NTAPI* PFN_LdrLoadDll)(IN PWCHAR PathToFile OPTIONAL, IN PULONG Flags OPTIONAL, IN PUNICODE_STRING ModuleFileName, OUT HMODULE* ModuleHandle);
 typedef NTSTATUS (NTAPI* PFN_LdrGetProcedureAddress)(IN HMODULE ModuleHandle, IN PANSI_STRING FunctionName OPTIONAL, IN WORD Oridinal OPTIONAL, OUT PVOID *FunctionAddress );
-typedef NTSTATUS (NTAPI* PFN_LdrLoadDll)(IN PWCHAR PathToFile OPTIONAL, IN ULONG Flags OPTIONAL, IN PUNICODE_STRING ModuleFileName, OUT HMODULE* ModuleHandle);
 typedef BOOL (WINAPI* PFN_HttpSendRequestA)(HINTERNET hRequest, LPCSTR lpszHeaders, DWORD dwHeadersLength, LPVOID lpOptional, DWORD dwOptionalLength );  
 typedef BOOL (WINAPI* PFN_HttpSendRequestW)(HINTERNET hRequest, LPCWSTR lpszHeaders, DWORD dwHeadersLength, LPVOID lpOptional, DWORD dwOptionalLength );  
 typedef BOOL (WINAPI* PFN_HttpSendRequestExA)( __in HINTERNET hRequest, __in_opt LPINTERNET_BUFFERSA lpBuffersIn, __out_opt LPINTERNET_BUFFERSA lpBuffersOut, __in DWORD dwFlags, __in_opt DWORD_PTR dwContext);  
@@ -133,6 +133,6 @@ private:
 		, LPVOID pfnNew  
 		);
 
-	static NTSTATUS WINAPI _LdrLoadDll(IN PWCHAR PathToFile OPTIONAL, IN ULONG Flags OPTIONAL, IN PUNICODE_STRING ModuleFileName, OUT HMODULE* ModuleHandle);
-	static NTSTATUS WINAPI _LdrGetProcedureAddress(IN HMODULE ModuleHandle, IN PANSI_STRING FunctionName OPTIONAL, IN WORD Oridinal OPTIONAL, OUT PVOID *FunctionAddress );   
+	static NTSTATUS NTAPI _LdrLoadDll(IN PWCHAR PathToFile OPTIONAL, IN PULONG Flags OPTIONAL, IN PUNICODE_STRING ModuleFileName, OUT HMODULE* ModuleHandle);
+	static NTSTATUS NTAPI _LdrGetProcedureAddress(IN HMODULE ModuleHandle, IN PANSI_STRING FunctionName OPTIONAL, IN WORD Oridinal OPTIONAL, OUT PVOID *FunctionAddress );   
 };

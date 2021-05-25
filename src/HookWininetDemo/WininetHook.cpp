@@ -108,17 +108,17 @@ BOOL CWininetHook::ReplaceIATEntryInImageImportTable(HANDLE hBaseAddress, LPCSTR
 {
 	ASSERT(hBaseAddress && lpszDllName && pfnCurrent && pfnNew);
 	// retrieve IMAGE_IMPORT_DESCRIPTOR  
-	DWORD dwSize = 0;
+	ULONG ulSize = 0;
 	PIMAGE_SECTION_HEADER pFoundHeader = NULL;
 	PIMAGE_IMPORT_DESCRIPTOR pImgImportDescriptor
-		= (PIMAGE_IMPORT_DESCRIPTOR)ImageDirectoryEntryToDataEx(hBaseAddress, TRUE, IMAGE_DIRECTORY_ENTRY_IMPORT, &dwSize, &pFoundHeader);
+		= (PIMAGE_IMPORT_DESCRIPTOR)ImageDirectoryEntryToDataEx(hBaseAddress, TRUE, IMAGE_DIRECTORY_ENTRY_IMPORT, &ulSize, &pFoundHeader);
 	if (pImgImportDescriptor == NULL)
 	{
 		return FALSE;
 	}
 	while (pImgImportDescriptor->Name)
 	{
-		if (_strcmpi((const CHAR*)((PBYTE)hBaseAddress + pImgImportDescriptor->Name), lpszDllName) == 0)
+		if (stricmp((const CHAR*)((PBYTE)hBaseAddress + pImgImportDescriptor->Name), lpszDllName) == 0)
 		{
 			break; // found  
 		}
@@ -132,13 +132,16 @@ BOOL CWininetHook::ReplaceIATEntryInImageImportTable(HANDLE hBaseAddress, LPCSTR
 		return ReplaceIATEntryInDelayImageImportTable(hBaseAddress, lpszDllName, pfnCurrent, pfnNew);
 	}
 	// retrieve IAT  
+#if !defined(_WIN64) && !defined(WIN64)
 	PIMAGE_THUNK_DATA pThunk = (PIMAGE_THUNK_DATA)(((LPBYTE)hBaseAddress) + pImgImportDescriptor->FirstThunk);
-
+#else
+	PIMAGE_THUNK_DATA64 pThunk = (PIMAGE_THUNK_DATA64)(((LPBYTE)hBaseAddress) + pImgImportDescriptor->FirstThunk);
+#endif
 	// enumerate functions in the IAT
 	while (pThunk->u1.Function)
 	{
-		LPVOID lpAddr = (LPVOID)(&pThunk->u1.Function);
-		if ((*(DWORD_PTR*)lpAddr) == (DWORD_PTR)pfnCurrent)
+		PDWORD_PTR lpAddr = (PDWORD_PTR)(&pThunk->u1.Function);
+		if ((*lpAddr) == (DWORD_PTR)pfnCurrent)
 		{
 			HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, GetCurrentProcessId());
 			if (hProcess != NULL)
@@ -162,17 +165,17 @@ BOOL CWininetHook::ReplaceIATEntryInDelayImageImportTable(HANDLE hBaseAddress, L
 {
 	ASSERT(hBaseAddress && lpszDllName && pfnCurrent && pfnNew);
 	// retrieve IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT  
-	DWORD dwSize = 0;
+	ULONG ulSize = 0;
 	PIMAGE_SECTION_HEADER pFoundHeader = NULL;
 	PImgDelayDescr pImgDelayDescr
-		= (PImgDelayDescr)ImageDirectoryEntryToDataEx(hBaseAddress, TRUE, IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT, &dwSize, &pFoundHeader);
+		= (PImgDelayDescr)ImageDirectoryEntryToDataEx(hBaseAddress, TRUE, IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT, &ulSize, &pFoundHeader);
 	if (pImgDelayDescr == NULL) 
 	{ 
 		return FALSE; 
 	}
 	while (pImgDelayDescr->rvaDLLName)
 	{
-		if (_strcmpi((const CHAR*)((PBYTE)hBaseAddress + pImgDelayDescr->rvaDLLName), lpszDllName) == 0)
+		if (stricmp((const CHAR*)((PBYTE)hBaseAddress + pImgDelayDescr->rvaDLLName), lpszDllName) == 0)
 		{
 			break;
 		}
@@ -184,18 +187,22 @@ BOOL CWininetHook::ReplaceIATEntryInDelayImageImportTable(HANDLE hBaseAddress, L
 		return FALSE;
 	}
 	// retrieve IAT  
-	PIMAGE_THUNK_DATA pThunk = NULL;
 	if ((pImgDelayDescr->grAttrs & dlattrRva) == 0)
 	{
 		return FALSE;
 	}
-	pThunk = (PIMAGE_THUNK_DATA)(((LPBYTE)hBaseAddress) + pImgDelayDescr->rvaIAT);
+
+#if !defined(_WIN64) && !defined(WIN64)
+	PIMAGE_THUNK_DATA pThunk = (PIMAGE_THUNK_DATA)(((LPBYTE)hBaseAddress) + pImgDelayDescr->rvaIAT);
+#else
+	PIMAGE_THUNK_DATA64 pThunk = (PIMAGE_THUNK_DATA64)(((LPBYTE)hBaseAddress) + pImgDelayDescr->rvaIAT);
+#endif
 
 	// enumerate functions in the IAT
 	while (pThunk->u1.Function)
 	{
-		LPVOID lpAddr = (LPVOID) (& pThunk->u1.Function);
-		if ((*(DWORD_PTR*)lpAddr) == (DWORD_PTR)pfnCurrent)
+		PDWORD_PTR lpAddr = (PDWORD_PTR)(&pThunk->u1.Function);
+		if ((*lpAddr) == (DWORD_PTR)pfnCurrent)
 		{
 			HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, GetCurrentProcessId());
 			if (hProcess != NULL)
@@ -216,10 +223,10 @@ BOOL CWininetHook::ReplaceIATEntryInDelayImageImportTable(HANDLE hBaseAddress, L
 }
 
 // Process those modules loaded dynamically, 
-NTSTATUS WINAPI CWininetHook::_LdrLoadDll(IN PWCHAR PathToFile OPTIONAL, IN ULONG Flags OPTIONAL, IN PUNICODE_STRING ModuleFileName, OUT HMODULE* ModuleHandle)
+NTSTATUS NTAPI CWininetHook::_LdrLoadDll(IN PWCHAR PathToFile OPTIONAL, IN PULONG Flags OPTIONAL, IN PUNICODE_STRING ModuleFileName, OUT HMODULE* ModuleHandle)
 {
 	NTSTATUS ntStatus = s_pfnLdrLoadDll(PathToFile, Flags, ModuleFileName, ModuleHandle);
-	if (ntStatus == STATUS_SUCCESS && (Flags & LOAD_LIBRARY_AS_DATAFILE) == 0)
+	if (ntStatus == STATUS_SUCCESS && ((*Flags) & LOAD_LIBRARY_AS_DATAFILE) == 0)
 	{
 #ifdef _DEBUG
 		if (ModuleFileName->Length > 0)
@@ -265,7 +272,7 @@ NTSTATUS WINAPI CWininetHook::_LdrLoadDll(IN PWCHAR PathToFile OPTIONAL, IN ULON
 	if( strcmp( szFunName, name) == 0 ) { if( !fun1 ) { fun1 = (type)(*FunctionAddress); } *FunctionAddress = fun2; return ntStatus; }
 
 // Return the user-provided function address instead of the read one
-NTSTATUS WINAPI CWininetHook::_LdrGetProcedureAddress(IN HMODULE ModuleHandle, IN PANSI_STRING FunctionName OPTIONAL, IN WORD Oridinal OPTIONAL, OUT PVOID* FunctionAddress)
+NTSTATUS NTAPI CWininetHook::_LdrGetProcedureAddress(IN HMODULE ModuleHandle, IN PANSI_STRING FunctionName OPTIONAL, IN WORD Oridinal OPTIONAL, OUT PVOID* FunctionAddress)
 {
 	NTSTATUS ntStatus = s_pfnLdrGetProcedureAddress(ModuleHandle, FunctionName, Oridinal, FunctionAddress);
 	if (ntStatus == STATUS_SUCCESS)
