@@ -75,8 +75,7 @@ CHookWininetDemoDoc* CHookWininetDemoView::GetDocument() const // non-debug vers
 
 void CHookWininetDemoView::OnTimer(UINT_PTR nIDEvent)
 {
-	//Navigate2(_T("http://www.codeproject.com/index.aspx"),NULL,NULL);
-	Navigate2(_T("https://ht2pc.maitoo998.com"),NULL,NULL);
+	Navigate2(_T("https://www.baidu.com"),NULL,NULL);
 	KillTimer(nIDEvent);
 	CHtmlView::OnTimer(nIDEvent);
 }
